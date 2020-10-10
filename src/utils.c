@@ -125,9 +125,7 @@ int find_int_arg(int argc, char **argv, char *arg, int def)
     for(i = 0; i < argc-1; ++i){
         if(!argv[i]) continue;
         if(0==strcmp(argv[i], arg)){
-            //“ü—Í‚ªNULL‚¾‚Á‚½‚çAŽ©“®‚Å1‚É‚·‚é
-            if (argv[i+1] == NULL) def = 1;
-            else def = atoi(argv[i + 1]);
+            def = atoi(argv[i+1]);
             del_arg(argc, argv, i);
             del_arg(argc, argv, i);
             break;

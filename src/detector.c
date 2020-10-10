@@ -21,8 +21,6 @@ typedef __compar_fn_t comparison_fn_t;
 
 int check_mistakes = 0;
 
-int test = 0;
-
 static int coco_ids[] = { 1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90 };
 
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path)
@@ -1592,9 +1590,9 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
     getchar();
 }
 
+
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh,
-    float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box,
-    int benchmark_layers, int print_detection_layer, int draw_label, int print_coordinate, int no_total, int print_warning)
+    float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers)
 {
     list *options = read_data_cfg(datacfg);
     char *name_list = option_find_str(options, "names", "data/names.list");
@@ -1647,20 +1645,16 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         //image sized = load_image_resize(input, net.w, net.h, net.c, &im);
         image im = load_image(input, 0, 0, net.c);
         image sized;
-        if (letter_box) sized = letterbox_image(im, net.w, net.h);
+        if(letter_box) sized = letterbox_image(im, net.w, net.h);
         else sized = resize_image(im, net.w, net.h);
 
-
         layer l = net.layers[net.n - 1];
-        //Detection layerを出力
-        if (print_detection_layer) {
-            int k;
-            for (k = 0; k < net.n; ++k) {
-                layer lk = net.layers[k];
-                if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
-                    l = lk;
-                    printf(" Detection layer: %d - type = %d \n", k, l.type);
-                }
+        int k;
+        for (k = 0; k < net.n; ++k) {
+            layer lk = net.layers[k];
+            if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+                l = lk;
+                printf(" Detection layer: %d - type = %d \n", k, l.type);
             }
         }
 
@@ -1683,17 +1677,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
             else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
         }
-
-        //画像を描写する
-        draw_detections_v3(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output, draw_label, print_coordinate, no_total, print_warning);
-
-        //画像の保存場所を画像がある場所にし，名前に-predictedを付け加える
-        char* split = strtok(input, ".");
-        char save_name[] = "default";
-        sprintf(save_name, "%s%s", split, "-predicted");
-        save_image(im, save_name);
+        draw_detections_v3(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output);
+        save_image(im, "predictions");
         if (!dont_show) {
-            show_image(im, save_name);
+            show_image(im, "predictions");
         }
 
         if (json_file) {
@@ -1774,7 +1761,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
 // adversarial attack dnn
 void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num,
-    int letter_box, int benchmark_layers, int print_detection_layer, int draw_label, int print_coordinate, int no_total, int print_warning)
+    int letter_box, int benchmark_layers)
 {
     list *options = read_data_cfg(datacfg);
     char *name_list = option_find_str(options, "names", "data/names.list");
@@ -1826,15 +1813,12 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
         image src_sized = copy_image(sized);
 
         layer l = net.layers[net.n - 1];
-        //Detection layerを出力
-        if (print_detection_layer) {
-            int k;
-            for (k = 0; k < net.n; ++k) {
-                layer lk = net.layers[k];
-                if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
-                    l = lk;
-                    printf(" Detection layer: %d - type = %d \n", k, l.type);
-                }
+        int k;
+        for (k = 0; k < net.n; ++k) {
+            layer lk = net.layers[k];
+            if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+                l = lk;
+                printf(" Detection layer: %d - type = %d \n", k, l.type);
             }
         }
 
@@ -1898,17 +1882,10 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
             if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
             else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
         }
-
-        //画像を描写
-        draw_detections_v3(sized, dets, nboxes, thresh, names, alphabet, l.classes, 1, draw_label, print_coordinate, no_total, print_warning);
-
-        //画像の保存場所を画像がある場所にし，名前に-predictedを付け加える
-        char* split = strtok(input, ".");
-        char save_name[] = "default";
-        sprintf(save_name, "%s%s", split, "-pre_predicted");
-        save_image(im, save_name);
+        draw_detections_v3(sized, dets, nboxes, thresh, names, alphabet, l.classes, 1);
+        save_image(sized, "pre_predictions");
         if (!dont_show) {
-            show_image(im, save_name);
+            show_image(sized, "pre_predictions");
         }
 
         free_detections(dets, nboxes);
@@ -1983,18 +1960,6 @@ void run_detector(int argc, char **argv)
     int num_of_clusters = find_int_arg(argc, argv, "-num_of_clusters", 5);
     int width = find_int_arg(argc, argv, "-width", -1);
     int height = find_int_arg(argc, argv, "-height", -1);
-    /*** 追加したオプション ***/
-    /* 画像のみ */
-    int print_detection_layer = find_arg(argc, argv, "-print_detection_layer"); //detection_layerの表示を行う
-    /* 動画と画像 */
-    int draw_label = find_arg(argc, argv, "-draw_label"); //画像や動画にラベルを出力
-    int print_coordinate = find_arg(argc, argv, "-print_coordinate"); //標準出力を行う(座標や認識率の出力)
-    int no_total = find_arg(argc, argv, "-no_total"); //合計値を出力
-    int print_warning = find_arg(argc, argv, "-print_warning"); //警告の表示
-    /* 動画のみ */
-    int mosaic_flag = find_int_arg(argc, argv, "-mosaic", 0); //モザイクを入れる->0(モザイク無し),1(モザイクあり),2(bboxを描かない[フレーム取得用])
-    int show_frame_num = find_arg(argc, argv, "-show_frame"); //フレーム番号を出力
-    int print_fps = find_arg(argc, argv, "-print_fps");  //fpsを表示する
     // extended output in test mode (output of rect bound coords)
     // and for recall mode (extended output table-like format with results for best_class fit)
     int ext_output = find_arg(argc, argv, "-ext_output");
@@ -2037,7 +2002,7 @@ void run_detector(int argc, char **argv)
         if (strlen(weights) > 0)
             if (weights[strlen(weights) - 1] == 0x0d) weights[strlen(weights) - 1] = 0;
     char *filename = (argc > 6) ? argv[6] : 0;
-    if (0 == strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers, print_detection_layer, draw_label, print_coordinate, no_total, print_warning);
+    if (0 == strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers);
     else if (0 == strcmp(argv[2], "train")) train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, mjpeg_port, show_imgs, benchmark_layers, chart_path);
     else if (0 == strcmp(argv[2], "valid")) validate_detector(datacfg, cfg, weights, outfile);
     else if (0 == strcmp(argv[2], "recall")) validate_detector_recall(datacfg, cfg, weights);
@@ -2045,7 +2010,7 @@ void run_detector(int argc, char **argv)
     else if (0 == strcmp(argv[2], "calc_anchors")) calc_anchors(datacfg, num_of_clusters, width, height, show);
     else if (0 == strcmp(argv[2], "draw")) {
         int it_num = 100;
-        draw_object(datacfg, cfg, weights, filename, thresh, dont_show, it_num, letter_box, benchmark_layers, print_detection_layer, draw_label, print_coordinate, no_total, print_warning);
+        draw_object(datacfg, cfg, weights, filename, thresh, dont_show, it_num, letter_box, benchmark_layers);
     }
     else if (0 == strcmp(argv[2], "demo")) {
         list *options = read_data_cfg(datacfg);
@@ -2055,10 +2020,8 @@ void run_detector(int argc, char **argv)
         if (filename)
             if (strlen(filename) > 0)
                 if (filename[strlen(filename) - 1] == 0x0d) filename[strlen(filename) - 1] = 0;
-
-        //引数を増やしている
         demo(cfg, weights, thresh, hier_thresh, cam_index, filename, names, classes, avgframes, frame_skip, prefix, out_filename,
-            mjpeg_port, dontdraw_bbox, json_port, dont_show, ext_output, letter_box, time_limit_sec, http_post_host, benchmark, benchmark_layers, mosaic_flag, draw_label, print_coordinate, no_total, show_frame_num, print_fps, print_warning);
+            mjpeg_port, dontdraw_bbox, json_port, dont_show, ext_output, letter_box, time_limit_sec, http_post_host, benchmark, benchmark_layers);
 
         free_list_contents_kvp(options);
         free_list(options);

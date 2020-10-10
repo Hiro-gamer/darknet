@@ -132,7 +132,7 @@ double get_wall_time()
 
 void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int cam_index, const char *filename, char **names, int classes, int avgframes,
     int frame_skip, char *prefix, char *out_filename, int mjpeg_port, int dontdraw_bbox, int json_port, int dont_show, int ext_output, int letter_box_in, int time_limit_sec, char *http_post_host,
-    int benchmark, int benchmark_layers, int mosaic_flag, int draw_label, int print_coordinate, int no_total, int show_frame_num, int print_fps, int print_warning)
+    int benchmark, int benchmark_layers)
 {
     if (avgframes < 1) avgframes = 1;
     avg_frames = avgframes;
@@ -270,13 +270,9 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
             //printf("\033[2J");
             //printf("\033[1;1H");
             //printf("\nFPS:%.1f\n", fps);
-
-            //次のフレームorフレームIDを出力する
-            if (show_frame_num) printf("\n********%08d frame********\n", global_frame_counter);
-            else printf("\n**********next frame**********\n");
+            printf("Objects:\n\n");
 
             ++frame_id;
-
             if (demo_json_port > 0) {
                 int timeout = 400000;
                 send_json(local_dets, local_nboxes, l.classes, demo_names, frame_id, demo_json_port, timeout);
@@ -293,12 +289,10 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
                 }
             }
 
-            //引数を増やしている
-            if (!benchmark && !dontdraw_bbox) draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output, mosaic_flag, draw_label, print_coordinate, no_total, print_warning);
+            if (!benchmark && !dontdraw_bbox) draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output);
             free_detections(local_dets, local_nboxes);
 
-            //FPSの表示
-            if (print_fps) printf("FPS:%.1f \t AVG_FPS:%.1f\n", fps, avg_fps);
+            printf("\nFPS:%.1f \t AVG_FPS:%.1f\n", fps, avg_fps);
 
             if(!prefix){
                 if (!dont_show) {
@@ -318,7 +312,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
                 }
             }else{
                 char buff[256];
-                sprintf(buff, "video-prefix/%s_%08d.jpg", prefix, global_frame_counter);
+                sprintf(buff, "%s_%08d.jpg", prefix, count);
                 if(show_img) save_cv_jpg(show_img, buff);
             }
 
@@ -330,11 +324,10 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
                 send_mjpeg(show_img, port, timeout, jpeg_quality);
             }
 
-            // save video
+            // save video file
             if (output_video_writer && show_img) {
                 write_frame_cv(output_video_writer, show_img);
-                //表示の方法を少し変えた
-                printf("☆cvWriteFrame\n");
+                printf("\n cvWriteFrame \n");
             }
 
             while (custom_atomic_load_int(&run_detect_in_thread)) {
@@ -422,7 +415,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 #else
 void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int cam_index, const char *filename, char **names, int classes, int avgframes,
     int frame_skip, char *prefix, char *out_filename, int mjpeg_port, int dontdraw_bbox, int json_port, int dont_show, int ext_output, int letter_box_in, int time_limit_sec, char *http_post_host,
-    int benchmark, int benchmark_layers, int mosaic_flag, int draw_label, int print_coordinate, int no_total, int show_frame_num, int print_fps, int print_warning)
+    int benchmark, int benchmark_layers)
 {
     fprintf(stderr, "Demo needs OpenCV for webcam images.\n");
 }
