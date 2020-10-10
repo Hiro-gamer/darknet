@@ -36,6 +36,7 @@ About Darknet framework: http://pjreddie.com/darknet/
 
 0. [Improvements in this repository](#improvements-in-this-repository)
 1. [How to use](#how-to-use-on-the-command-line)
+   * [追加された機能](#追加した機能)
 2. How to compile on Linux
    * [Using cmake](#how-to-compile-on-linux-using-cmake)
    * [Using make](#how-to-compile-on-linux-using-make)
@@ -261,6 +262,23 @@ On Linux find executable file `./darknet` in the root directory, while on Window
 * To calculate anchors: `darknet.exe detector calc_anchors data/obj.data -num_of_clusters 9 -width 416 -height 416`
 * To check accuracy mAP@IoU=50: `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_7000.weights`
 * To check accuracy mAP@IoU=75: `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_7000.weights -iou_thresh 0.75`
+
+---
+
+#### 追加した機能
+##### 画像のみ(test only)
+* `-print_detection_layer` detection_layerの表示を行う
+##### 動画と画像(test & demo)
+* `-draw_label` 画像や動画にラベルを出力
+* `-print_coordinate` 標準出力を行う(座標や認識率の出力)
+* `-no_total` 合計値を出力しない
+* `-print_warning` 警告の表示する
+##### 動画のみ(demo only) */
+* `-mosaic [num]` モザイクを入れる[num]->0(無),1(有),2(bboxを描かない[フレーム取得用])
+* `-show_frame` フレーム番号を出力
+* `-print_fps` fpsを表示する
+
+---
 
 ##### For using network video-camera mjpeg-stream with any Android smartphone
 
