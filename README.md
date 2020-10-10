@@ -272,7 +272,7 @@ On Linux find executable file `./darknet` in the root directory, while on Window
 * `-draw_label` 画像や動画にラベルを出力
 * `-print_coordinate` 標準出力を行う(座標や認識率の出力)
 * `-no_total` 合計値を出力しない
-* `-print_warning` 警告の表示する
+* `-print_warning` 警告の表示する(合計値を出力してないと表示されない)
 ##### 動画のみ(demo only) */
 * `-mosaic [num]` モザイクを入れる[num]->0(無),1(有),2(bboxを描かない[フレーム取得用])
 * `-show_frame` フレーム番号を出力
