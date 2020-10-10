@@ -95,6 +95,7 @@ int max_int_index(int *a, int n);
 boxabs box_to_boxabs(const box* b, const int img_w, const int img_h, const int bounds_check);
 int make_directory(char *path, int mode);
 unsigned long custom_hash(char *str);
+void check_warning(int class_id_counter[], int default_class_num);
 
 #define max_val_cmp(a,b) (((a) > (b)) ? (a) : (b))
 #define min_val_cmp(a,b) (((a) < (b)) ? (a) : (b))

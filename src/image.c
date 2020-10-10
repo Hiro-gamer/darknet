@@ -20,6 +20,8 @@
 #include "stb_image_write.h"
 #endif
 
+#define DEFAULT_CLASS_NUM 64 //クラスの数(想定)
+
 extern int check_mistakes;
 //int windows = 0;
 
@@ -326,7 +328,7 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr) {
     return delta < 0 ? -1 : delta > 0 ? 1 : 0;
 }
 
-void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
+void draw_detections_v3(image im, detection* dets, int num, float thresh, char** names, image** alphabet, int classes, int ext_output, int draw_label, int print_coordinate, int no_total, int print_warning)
 {
     static int frame_id = 0;
     frame_id++;
@@ -334,31 +336,50 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
     int selected_detections_num;
     detection_with_class* selected_detections = get_actual_detections(dets, num, thresh, &selected_detections_num, names);
 
-    // text output
-    qsort(selected_detections, selected_detections_num, sizeof(*selected_detections), compare_by_lefts);
-    int i;
-    for (i = 0; i < selected_detections_num; ++i) {
-        const int best_class = selected_detections[i].best_class;
-        printf("%s: %.0f%%", names[best_class],    selected_detections[i].det.prob[best_class] * 100);
-        if (ext_output)
-            printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-                round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
-                round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
-                round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
-        else
-            printf("\n");
-        int j;
-        for (j = 0; j < classes; ++j) {
-            if (selected_detections[i].det.prob[j] > thresh && j != best_class) {
-                printf("%s: %.0f%%", names[j], selected_detections[i].det.prob[j] * 100);
+    // 画像内のクラスの数を出力する
+    if (!no_total) {
+        int class_id_counter[DEFAULT_CLASS_NUM] = { 0 }; //カウンター
+        int i;
+        for (i = 0; i < selected_detections_num; ++i) {
+            const int best_class = selected_detections[i].best_class;
+            class_id_counter[best_class] += 1;
+        }
+        printf("---------class number---------\n");
+        for (i = 0; i < classes && i < DEFAULT_CLASS_NUM; ++i) printf("%s: %d\n", names[i], class_id_counter[i]);
 
-                if (ext_output)
-                    printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-                        round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
-                        round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
-                        round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
-                else
-                    printf("\n");
+        //警告文の表示の判断をする
+        if (print_warning) check_warning(class_id_counter, DEFAULT_CLASS_NUM);
+    }
+
+    //条件分岐的に外に出した
+    int i;
+
+    // text output
+    if (print_coordinate) {
+        qsort(selected_detections, selected_detections_num, sizeof(*selected_detections), compare_by_lefts);
+        for (i = 0; i < selected_detections_num; ++i) {
+            const int best_class = selected_detections[i].best_class;
+            printf("%s: %.0f%%", names[best_class], selected_detections[i].det.prob[best_class] * 100);
+            if (ext_output)
+                printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+                    round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2) * im.w),
+                    round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2) * im.h),
+                    round(selected_detections[i].det.bbox.w * im.w), round(selected_detections[i].det.bbox.h * im.h));
+            else
+                printf("\n");
+            int j;
+            for (j = 0; j < classes; ++j) {
+                if (selected_detections[i].det.prob[j] > thresh && j != best_class) {
+                    printf("%s: %.0f%%", names[j], selected_detections[i].det.prob[j] * 100);
+
+                    if (ext_output)
+                        printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+                            round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2) * im.w),
+                            round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2) * im.h),
+                            round(selected_detections[i].det.bbox.w * im.w), round(selected_detections[i].det.bbox.h * im.h));
+                    else
+                        printf("\n");
+                }
             }
         }
     }
@@ -431,24 +452,29 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
             else {
                 draw_box_width(im, left, top, right, bot, width, red, green, blue); // 3 channels RGB
             }
-            if (alphabet) {
-                char labelstr[4096] = { 0 };
-                strcat(labelstr, names[selected_detections[i].best_class]);
-                char prob_str[10];
-                sprintf(prob_str, ": %.2f", selected_detections[i].det.prob[selected_detections[i].best_class]);
-                strcat(labelstr, prob_str);
-                int j;
-                for (j = 0; j < classes; ++j) {
-                    if (selected_detections[i].det.prob[j] > thresh && j != selected_detections[i].best_class) {
-                        strcat(labelstr, ", ");
-                        strcat(labelstr, names[j]);
+
+            // 画像内に文字を表示する
+            if (draw_label) {
+                if (alphabet) {
+                    char labelstr[4096] = { 0 };
+                    strcat(labelstr, names[selected_detections[i].best_class]);
+                    char prob_str[10];
+                    sprintf(prob_str, ": %.2f", selected_detections[i].det.prob[selected_detections[i].best_class]);
+                    strcat(labelstr, prob_str);
+                    int j;
+                    for (j = 0; j < classes; ++j) {
+                        if (selected_detections[i].det.prob[j] > thresh && j != selected_detections[i].best_class) {
+                            strcat(labelstr, ", ");
+                            strcat(labelstr, names[j]);
+                        }
                     }
+                    image label = get_label_v3(alphabet, labelstr, (im.h * .02));
+                    //draw_label(im, top + width, left, label, rgb);
+                    draw_weighted_label(im, top + width, left, label, rgb, 0.7);
+                    free_image(label);
                 }
-                image label = get_label_v3(alphabet, labelstr, (im.h*.02));
-                //draw_label(im, top + width, left, label, rgb);
-                draw_weighted_label(im, top + width, left, label, rgb, 0.7);
-                free_image(label);
             }
+
             if (selected_detections[i].det.mask) {
                 image mask = float_to_image(14, 14, 1, selected_detections[i].det.mask);
                 image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
