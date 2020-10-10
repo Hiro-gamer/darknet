@@ -77,6 +77,9 @@ using std::endl;
 #define CV_AA cv::LINE_AA
 #endif
 
+#define DEFAULT_CLASS_NUM 64
+
+
 extern "C" {
 
     //struct mat_cv : cv::Mat {  };
@@ -871,11 +874,24 @@ extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
 }
 // ----------------------------------------
 
+// ====================================================================
+// モザイク処理
+// ====================================================================
+extern "C" cv::Mat mosaic(cv::Mat show_img, int left, int top, int right, int bot) {
+    double mag = 0.2; //縮小倍率
+    cv::Mat mosaic_mat = (cv::Mat_<double>(2, 3) << 1.0, 0.0, left, 0.0, 1.0, top);
+    cv::Mat clipped(show_img, cv::Rect(cv::Point(left - 5, top - 5), cv::Size(right - left + 5, bot - top + 5)));
+    cv::resize(clipped, clipped, cv::Size(), mag, mag);
+    cv::resize(clipped, clipped, cv::Size(), 1 / mag, 1 / mag);
+    cv::warpAffine(clipped, show_img, mosaic_mat, cv::Size(704, 480), 0, cv::BORDER_TRANSPARENT);
+    return show_img;
+}
+
 
 // ====================================================================
-// Draw Detection
+// Draw Detection(引数を増やしている)
 // ====================================================================
-extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
+extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output, int mosaic_flag, int draw_label, int print_coordinate, int no_total, int print_warning)
 {
     try {
         cv::Mat *show_img = (cv::Mat*)mat;
@@ -884,32 +900,71 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
         static int frame_id = 0;
         frame_id++;
 
+        //カウンター
+        int class_id_counter[DEFAULT_CLASS_NUM] = { 0 };
+
         for (i = 0; i < num; ++i) {
             char labelstr[4096] = { 0 };
             int class_id = -1;
-            for (j = 0; j < classes; ++j) {
-                int show = strncmp(names[j], "dont_show", 9);
-                if (dets[i].prob[j] > thresh && show) {
-                    if (class_id < 0) {
-                        strcat(labelstr, names[j]);
+
+            if (!no_total) {
+                //カウンター増加
+                for (j = 0; j < classes; ++j) {
+                    int show = strncmp(names[j], "dont_show", 9);
+                    if (dets[i].prob[j] > thresh && show) {
                         class_id = j;
-                        char buff[20];
-                        if (dets[i].track_id) {
-                            sprintf(buff, " (id: %d)", dets[i].track_id);
+                        class_id_counter[j] += 1;
+                        char buff[10];
+                        if (draw_label) {
+                            strcat(labelstr, names[j]);
+                            sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
                             strcat(labelstr, buff);
                         }
-                        sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
-                        strcat(labelstr, buff);
-                        printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
-                        if (dets[i].track_id) printf("(track = %d, sim = %f) ", dets[i].track_id, dets[i].sim);
-                    }
-                    else {
-                        strcat(labelstr, ", ");
-                        strcat(labelstr, names[j]);
-                        printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
                     }
                 }
             }
+            else {
+                for (j = 0; j < classes; ++j) {
+                    int show = strncmp(names[j], "dont_show", 9);
+                    if (dets[i].prob[j] > thresh && show) {
+                        class_id = j;
+                        char buff[10];
+                        if (draw_label) {
+                            strcat(labelstr, names[j]);
+                            sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
+                            strcat(labelstr, buff);
+                        }
+                    }
+                }
+            }
+
+            // 推定したクラスを標準出力
+            if (print_coordinate) {
+                for (j = 0; j < classes; ++j) {
+                    int show = strncmp(names[j], "dont_show", 9);
+                    if (dets[i].prob[j] > thresh && show) {
+                        if (class_id < 0) {
+                            strcat(labelstr, names[j]);
+                            class_id = j;
+                            char buff[20];
+                            if (dets[i].track_id) {
+                                sprintf(buff, " (id: %d)", dets[i].track_id);
+                                strcat(labelstr, buff);
+                            }
+                            sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
+                            strcat(labelstr, buff);
+                            printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
+                            if (dets[i].track_id) printf("(track = %d, sim = %f) ", dets[i].track_id, dets[i].sim);
+                        }
+                        else {
+                            strcat(labelstr, ", ");
+                            strcat(labelstr, names[j]);
+                            printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
+                        }
+                    }
+                }
+            }
+            
             if (class_id >= 0) {
                 int width = std::max(1.0f, show_img->rows * .002f);
 
@@ -941,10 +996,10 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 b.y = (b.y < 1) ? b.y : 1;
                 //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
 
-                int left = (b.x - b.w / 2.)*show_img->cols;
-                int right = (b.x + b.w / 2.)*show_img->cols;
-                int top = (b.y - b.h / 2.)*show_img->rows;
-                int bot = (b.y + b.h / 2.)*show_img->rows;
+                int left = (b.x - b.w / 2.) * show_img->cols;
+                int right = (b.x + b.w / 2.) * show_img->cols;
+                int top = (b.y - b.h / 2.) * show_img->rows;
+                int bot = (b.y + b.h / 2.) * show_img->rows;
 
                 if (left < 0) left = 0;
                 if (right > show_img->cols - 1) right = show_img->cols - 1;
@@ -964,13 +1019,17 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 pt1.y = top;
                 pt2.x = right;
                 pt2.y = bot;
-                pt_text.x = left;
-                pt_text.y = top - 4;// 12;
-                pt_text_bg1.x = left;
-                pt_text_bg1.y = top - (3 + 18 * font_size);
-                pt_text_bg2.x = right;
-                if ((right - left) < text_size.width) pt_text_bg2.x = left + text_size.width;
-                pt_text_bg2.y = top;
+
+                //ラベルの座標をポインタに代入
+                if (draw_label) {
+                    pt_text.x = left;
+                    pt_text.y = top - 4;// 12;
+                    pt_text_bg1.x = left;
+                    pt_text_bg1.y = top - (3 + 18 * font_size);
+                    pt_text_bg2.x = right;
+                    if ((right - left) < text_size.width) pt_text_bg2.x = left + text_size.width;
+                    pt_text_bg2.y = top;
+                }
                 cv::Scalar color;
                 color.val[0] = red * 256;
                 color.val[1] = green * 256;
@@ -993,23 +1052,52 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                 //cvSaveImage(image_name, copy_img, 0);
                 //cvResetImageROI(copy_img);
 
-                cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0);
-                if (ext_output)
-                    printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-                    (float)left, (float)top, b.w*show_img->cols, b.h*show_img->rows);
-                else
-                    printf("\n");
+                //モザイク処理
+                if (mosaic_flag == 1 && class_id == 0) *show_img = mosaic(*show_img, left, top, right, bot);
 
-                cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
-                cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
-                cv::Scalar black_color = CV_RGB(0, 0, 0);
-                cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
-                // cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
+                //BBOXを描く(0,1以外はBBOXもモザイクもなし)
+                if (mosaic_flag == 0) cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0); //mosaicが0(or未入力)だったら、全部にBBOX
+                else if ((mosaic_flag == 1) & (class_id != 0)) cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0); //mosaicを1にしていれば、class[0]以外BBOX
+
+                //認識した物体の座標を標準出力
+                if (print_coordinate) {
+                    if (ext_output)
+                        printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
+                            (float)left, (float)top, b.w * show_img->cols, b.h * show_img->rows);
+                    else
+                        printf("\n");
+                }
+
+                //ラベルを描く
+                if (draw_label) {
+                    cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
+                    cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
+                    cv::Scalar black_color = CV_RGB(0, 0, 0);
+                    cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
+                    // cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
+                }
             }
         }
         if (ext_output) {
             fflush(stdout);
         }
+
+        if (!no_total) {
+            //カウンターの結果を標準出力
+            for (j = 0; j < classes; ++j) printf("%s: %d\n", names[j], class_id_counter[j]);
+            if (print_warning) {
+                // 警告欄
+                printf("-------------警告-------------\n");
+                /*
+                // 立ってる人が多かったら、警告
+                if (class_id_counter[2] > 6) printf("沢山の人が立っています！\n");
+                // 立っていて、つり革を持っていない人が5人以上いたら警告
+                if (class_id_counter[2] - class_id_counter[1] >= 3) printf("つり革の持っている人が少ないです！\n");
+                */
+                printf("------------------------------\n");
+            }
+        }
+
     }
     catch (...) {
         cerr << "OpenCV exception: draw_detections_cv_v3() \n";
