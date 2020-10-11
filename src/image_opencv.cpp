@@ -77,7 +77,7 @@ using std::endl;
 #define CV_AA cv::LINE_AA
 #endif
 
-#define DEFAULT_CLASS_NUM 64
+#define DEFAULT_CLASS_NUM 64 //クラスの数(想定)
 
 
 extern "C" {
@@ -880,7 +880,7 @@ extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
 extern "C" cv::Mat mosaic(cv::Mat show_img, int left, int top, int right, int bot) {
     double mag = 0.2; //縮小倍率
     cv::Mat mosaic_mat = (cv::Mat_<double>(2, 3) << 1.0, 0.0, left, 0.0, 1.0, top);
-    cv::Mat clipped(show_img, cv::Rect(cv::Point(left - 5, top - 5), cv::Size(right - left + 5, bot - top + 5)));
+    cv::Mat clipped(show_img, cv::Rect(cv::Point(left - 5, top - 5), cv::Size(right - left + 10, bot - top + 10)));
     cv::resize(clipped, clipped, cv::Size(), mag, mag);
     cv::resize(clipped, clipped, cv::Size(), 1 / mag, 1 / mag);
     cv::warpAffine(clipped, show_img, mosaic_mat, cv::Size(704, 480), 0, cv::BORDER_TRANSPARENT);
@@ -1065,7 +1065,7 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
                         printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
                             (float)left, (float)top, b.w * show_img->cols, b.h * show_img->rows);
                     else
-                        printf("\n");
+                        printf("\n"); 
                 }
 
                 //ラベルを描く
@@ -1084,18 +1084,9 @@ extern "C" void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, flo
 
         if (!no_total) {
             //カウンターの結果を標準出力
-            for (j = 0; j < classes; ++j) printf("%s: %d\n", names[j], class_id_counter[j]);
-            if (print_warning) {
-                // 警告欄
-                printf("-------------警告-------------\n");
-                /*
-                // 立ってる人が多かったら、警告
-                if (class_id_counter[2] > 6) printf("沢山の人が立っています！\n");
-                // 立っていて、つり革を持っていない人が5人以上いたら警告
-                if (class_id_counter[2] - class_id_counter[1] >= 3) printf("つり革の持っている人が少ないです！\n");
-                */
-                printf("------------------------------\n");
-            }
+            for (i = 0; i < classes; ++i) printf("%s: %d\n", names[i], class_id_counter[i]);
+            //警告文の表示
+            if (print_warning) check_warning(class_id_counter, DEFAULT_CLASS_NUM);
         }
 
     }
