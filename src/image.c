@@ -20,7 +20,7 @@
 #include "stb_image_write.h"
 #endif
 
-#define DEFAULT_CLASS_NUM 64
+#define DEFAULT_CLASS_NUM 64 //クラスの数(想定)
 
 extern int check_mistakes;
 //int windows = 0;
@@ -344,19 +344,11 @@ void draw_detections_v3(image im, detection* dets, int num, float thresh, char**
             const int best_class = selected_detections[i].best_class;
             class_id_counter[best_class] += 1;
         }
-        printf("---class numbers---\n");
+        printf("---------class number---------\n");
         for (i = 0; i < classes && i < DEFAULT_CLASS_NUM; ++i) printf("%s: %d\n", names[i], class_id_counter[i]);
-    }
 
-    if (print_warning) {
-        // 警告欄
-        printf("---警告---\n");
-        /*
-        // 立ってる人が多かったら、警告
-        if (class_id_counter[1] > 6) printf("沢山の人が立っています！\n");
-        // 立っていて、つり革を持っていない人が5人以上いたら警告
-        if (abs(class_id_counter[0] - class_id_counter[1]) >= 3) printf("つり革の持っている人が少ないです！\n");
-        */
+        //警告文の表示の判断をする
+        if (print_warning) check_warning(class_id_counter, DEFAULT_CLASS_NUM);
     }
 
     //条件分岐的に外に出した
@@ -492,9 +484,6 @@ void draw_detections_v3(image im, detection* dets, int num, float thresh, char**
                 free_image(resized_mask);
                 free_image(tmask);
             }
-
-            //改行を入れて見やすくする
-            printf("\n");
     }
     free(selected_detections);
 }

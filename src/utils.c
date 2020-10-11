@@ -1043,3 +1043,17 @@ unsigned long custom_hash(char *str)
 
     return hash;
 }
+
+void check_warning(int class_id_counter[], int default_class_num)
+{
+    // 警告欄
+    printf("-------------警告-------------\n");
+    /*
+    // 立ってる人が多かったら、警告
+    if (class_id_counter[1] > 6) printf("沢山の人が立っています！\n");
+    // 立っていて、つり革を持っていない人が5人以上いたら警告
+    if (abs(class_id_counter[0] - class_id_counter[1]) >= 3) printf("つり革の持っている人が少ないです！\n");
+    */
+    printf("------------------------------\n");
+    return;
+}
