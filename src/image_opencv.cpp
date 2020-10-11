@@ -880,7 +880,7 @@ extern "C" void save_cv_jpg(mat_cv *img_src, const char *name)
 extern "C" cv::Mat mosaic(cv::Mat show_img, int left, int top, int right, int bot) {
     double mag = 0.2; //èkè¨î{ó¶
     cv::Mat mosaic_mat = (cv::Mat_<double>(2, 3) << 1.0, 0.0, left, 0.0, 1.0, top);
-    cv::Mat clipped(show_img, cv::Rect(cv::Point(left - 5, top - 5), cv::Size(right - left + 5, bot - top + 5)));
+    cv::Mat clipped(show_img, cv::Rect(cv::Point(left - 5, top - 5), cv::Size(right - left + 10, bot - top + 10)));
     cv::resize(clipped, clipped, cv::Size(), mag, mag);
     cv::resize(clipped, clipped, cv::Size(), 1 / mag, 1 / mag);
     cv::warpAffine(clipped, show_img, mosaic_mat, cv::Size(704, 480), 0, cv::BORDER_TRANSPARENT);
